@@ -1,0 +1,27 @@
+﻿<Window x:Class="Simplex.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Simplex"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="370.799" Width="525">
+    <Grid Background="Black">
+        <Button x:Name="button" Grid.Row="0" Content="Click me" VerticalAlignment="Top" Click="button_Click" />
+        <Viewport3D x:Name="testWindow" Grid.Row="1">
+            <Viewport3D.Camera>
+                <PerspectiveCamera x:Name="camera" FarPlaneDistance="50"
+                         NearPlaneDistance="0" LookDirection="0,0,-10" UpDirection="0,1,0"
+                          Position="0,0,10" FieldOfView="45" />
+            </Viewport3D.Camera>
+            <ModelVisual3D x:Name="model">
+                <ModelVisual3D.Content>
+                    <Model3DGroup x:Name="group">
+                        <AmbientLight Color="DarkGray" />
+                        <DirectionalLight Color="White" Direction="0,-50,0" />
+                    </Model3DGroup>
+                </ModelVisual3D.Content>
+            </ModelVisual3D>
+        </Viewport3D>
+    </Grid>
+</Window>
