@@ -21,22 +21,19 @@ namespace Simplex
     /// </summary>
     public partial class MainWindow : Window
     {
-        GeometryModel3D sphere = new GeometryModel3D(null, new DiffuseMaterial(Brushes.Red));
+        Particle sphere;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            IcoSphereCreator gen = new IcoSphereCreator();
-            sphere.Geometry = gen.Create(2);
-            group.Children.Add(sphere);
-            GeometryModel3D othersphere = new GeometryModel3D(sphere.Geometry, new DiffuseMaterial(Brushes.Green));
-            group.Children.Add(othersphere);
+            sphere = new Particle(-2, 0, 0, 1);
+            sphere.Show(group);
         }
 
         private void button_Click(object sender, RoutedEventArgs e)
         {
-            sphere.Transform = new TranslateTransform3D(1, 1, 1);
+            sphere.Position = new Vector3D(1, 0, 0);
             testWindow.InvalidateVisual();
         }
     }

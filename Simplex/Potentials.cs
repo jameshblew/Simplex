@@ -62,9 +62,20 @@ namespace Simplex
     public class Particle : IComparable<Particle>
     {
         protected GeometryModel3D model = new GeometryModel3D();
-        protected double x, y, z;
+        protected Vector3D posVector;
         protected int q;
 
+        private static MeshGeometry3D sphereMesh = new IcoSphereCreator().Create(3);
+
+        public Vector3D Position
+        {
+            get { return posVector; }
+            set
+            {
+                model.Transform = new TranslateTransform3D(value - posVector);
+                posVector = value;
+            }
+        }
         public int Charge
         {
             get { return q; }
@@ -86,9 +97,7 @@ namespace Simplex
 
         public Particle(double x, double y, double z, int q)
         {
-            this.x = x;
-            this.y = y;
-            this.z = z;
+            Position = new Vector3D(x, y, z);
             Charge = q;
         }
         
@@ -102,24 +111,9 @@ namespace Simplex
                 throw new ArgumentException("Object is not a Particle!");
         }
 
-        public void Move(double plusx, double plusy, double plusz)
-        {
-            x += plusx;
-            y += plusy;
-            z += plusz;
-            model.Transform = new TranslateTransform3D(x, y, z);
-        }
-
-        public void MoveTo(double newx, double newy, double newz)
-        {
-            x = newx;
-            y = newy;
-            z = newz;
-            model.Transform = new TranslateTransform3D(newx, newy, newz);
-        }
-
         public void Show(Model3DGroup group)
         {
+            model.Geometry = sphereMesh;
             //TODO: drawing stuff here
             group.Children.Add(model);
         }
