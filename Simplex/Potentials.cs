@@ -16,8 +16,7 @@ namespace Simplex
 
     class Born : BasePotential
     {
-        //1920.0 au
-        public double c { get; set; }
+        public double c { get; set; } = 1920.0; //au
 
         public override double U(int q1, int q2, double rsquared)
         {
@@ -27,7 +26,7 @@ namespace Simplex
 
     class BornAttractive : BasePotential
     {
-        public double c = 1920.0; //au
+        public double c { get; set; } = 1920.0; //au
 
         public override double U(int q1, int q2, double rsquared)
         {
@@ -37,8 +36,8 @@ namespace Simplex
 
     class LennardJones : BasePotential
     {
-        public double epsilon = 1.728;      //mHartrees
-        public double requilibrium = 7.049; //Bohrs
+        public double epsilon { get; set; } = 1.728;      //mHartrees
+        public double requilibrium { get; set; } = 7.049; //Bohrs
 
         public override double U(int q1, int q2, double rsquared)
         {
@@ -49,9 +48,9 @@ namespace Simplex
 
     class Morse : BasePotential
     {
-        public double De = -1.66;  //eV
-        public double r0 = 2.47;   //Angstrom
-        public double beta = 1.49; //Inverse Angstrom
+        public double De { get; set; } = -1.66;  //eV
+        public double r0 { get; set; } = 2.47;   //Angstrom
+        public double beta { get; set; } = 1.49; //Inverse Angstrom
 
         public override double U(int q1, int q2, double rsquared)
         {
