@@ -3,18 +3,27 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
+using System.Diagnostics;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
 
 namespace Simplex
 {
     #region Potential definitions
-    abstract class BasePotential
+    public abstract class BasePotential
     {
         public abstract double U(int q1, int q2, double rsquared);
     }
 
-    class Born : BasePotential
+    public class Born : BasePotential
     {
         public double c { get; set; } = 1920.0; //au
 
@@ -24,7 +33,7 @@ namespace Simplex
         }
     }
 
-    class BornAttractive : BasePotential
+    public class BornAttractive : BasePotential
     {
         public double c { get; set; } = 1920.0; //au
 
@@ -34,7 +43,7 @@ namespace Simplex
         }
     }
 
-    class LennardJones : BasePotential
+    public class LennardJones : BasePotential
     {
         public double epsilon { get; set; } = 1.728;      //mHartrees
         public double requilibrium { get; set; } = 7.049; //Bohrs
@@ -46,7 +55,7 @@ namespace Simplex
         }
     }
 
-    class Morse : BasePotential
+    public class Morse : BasePotential
     {
         public double De { get; set; } = -1.66;  //eV
         public double r0 { get; set; } = 2.47;   //Angstrom
@@ -63,16 +72,19 @@ namespace Simplex
     {
         protected GeometryModel3D model = new GeometryModel3D();
         protected Vector3D posVector;
+        protected int number;
         protected int q;
 
-        private static MeshGeometry3D sphereMesh = new IcoSphereCreator().Create(3);
+        private static MeshGeometry3D sphereMesh = new IcoSphereCreator().Create(3); //Only create the mesh once, copy afterwards
+        private static int index = 0;
 
         public Vector3D Position
         {
             get { return posVector; }
             set
             {
-                model.Transform = new TranslateTransform3D(value - posVector);
+                Debug.WriteLine("Changing position of Particle " + number + ".");
+                model.Transform = new TranslateTransform3D(value);
                 posVector = value;
             }
         }
@@ -81,6 +93,7 @@ namespace Simplex
             get { return q; }
             set
             {
+                Debug.WriteLine("Changing charge of Particle " + number + ".");
                 q = value;
                 if (q == 0)
                     model.Material = new DiffuseMaterial(Brushes.Green);
@@ -89,36 +102,49 @@ namespace Simplex
                 else if (q > 0)
                     model.Material = new DiffuseMaterial(Brushes.Red);
                 else
-                    throw new ArgumentException("WTF Error: Charge is not correctly interpreted.");
+                    throw new ArithmeticException("WTF Error: Charge is not correctly interpreted.");
             }
         }
         public bool IsStatic { get; set; }
-        public double Potential { get; set; }
+        public double Potential { get; set; } = 0;
 
         public Particle(double x, double y, double z, int q)
         {
             Position = new Vector3D(x, y, z);
             Charge = q;
+            number = ++index;
+            Console.WriteLine("Creating Particle number " + number + ".");
         }
         
         public int CompareTo(Particle other)
         {
             if (other == null) return 1;
 
-            if (other != null)
-                return Potential.CompareTo(other.Potential);
-            else
-                throw new ArgumentException("Object is not a Particle!");
+            return Potential.CompareTo(other.Potential);
         }
 
         public void Show(Model3DGroup group)
         {
+            Console.WriteLine("Creating Particle model.");
             model.Geometry = sphereMesh;
-            //TODO: drawing stuff here
             group.Children.Add(model);
+        }
+
+        public double calculatePotential(Particle other, BasePotential potential)
+        {
+            if (other == null) throw new NullReferenceException();
+            if (this == other) return 0;
+
+            double r2 = (Position - other.Position).LengthSquared;
+            if (Math.Abs(r2) < 0.01) throw new Exception("Particles too close together!");
+
+            return potential.U(Charge, other.Charge, r2);
         }
     }
 
+    //Following code taken from the blog "catch 22" by Andreas Kahler.
+    //http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
+    //Slight modifications have been made.
     public class IcoSphereCreator
     {
         private struct TriangleIndices
@@ -279,6 +305,68 @@ namespace Simplex
             }
             **/
             return geometry;
+        }
+    }
+
+    /// <summary>
+    /// Application logic for MainWindow.xaml
+    /// </summary>
+    partial class MainWindow : Window
+    {
+        //NM coefficients, probably not going to be alterable.
+        private double alpha = 1.0;
+        private double gamma = 2.0;
+        private double rho = 0.5;
+        private double sigma = 0.5;
+
+        public List<Particle> NMStep(List<Particle> pList, BasePotential potential)
+        {
+            //TODO: Nelder Mead step process
+            // exclude stationary particles
+
+            //TODO: calculate potentials
+
+            //sort by potential
+            pList.Sort();
+
+            //TODO: calculate centroid point for all but last
+            //TODO: reflection
+            //TODO: expansion
+            //TODO: contraction
+            //TODO: reduction
+
+            throw new NotImplementedException("Too soon, bro.");
+        }
+
+        public List<Particle> calcPotentials(List<Particle> pList, BasePotential potential)
+        {
+            //TODO: calculate the potentials
+            int n = pList.Count;
+            double placeholder;
+            double[,] U = new double[n, n];
+
+            //Form potentials matrix (symmetric, real, zero-diagonal)
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = i; i < n; j++)
+                {
+                    placeholder = pList[i].calculatePotential(pList[j], potential);
+                    U[i, j] = placeholder;
+                    U[j, i] = placeholder;
+                }
+            }
+
+            //Sum the rows (or columns) for individual center potentials
+            for (int i = 0; i < n; i++)
+            {
+                pList[i].Potential = 0;
+                for (int j = 0; j < n; j++)
+                {
+                    pList[i].Potential += U[i, j];
+                }
+            }
+
+            return pList;
         }
     }
 }

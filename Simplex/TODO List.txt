@@ -1,0 +1,9 @@
+﻿Simple list to write down all of the things that I need to do with this project.
+
+Implement Nelder-Mead algorithm
+	Write step process
+	Calculate potentials
+	Exclude stationary particles from optimization
+
+Add user interface
+	Add and remove particles (edit?)

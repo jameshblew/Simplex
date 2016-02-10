@@ -21,19 +21,21 @@ namespace Simplex
     /// </summary>
     public partial class MainWindow : Window
     {
-        Particle sphere;
+        Particle testSphere;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            sphere = new Particle(-2, 0, 0, 1);
-            sphere.Show(group);
+            testSphere = new Particle(-1, 0, 0, 1);
+            testSphere.Show(group);
         }
 
         private void button_Click(object sender, RoutedEventArgs e)
         {
-            sphere.Position = new Vector3D(1, 0, 0);
+            Particle sp2 = new Particle(0, 0, 0, -1);
+            sp2.Show(group);
+            testSphere.Position = new Vector3D(1, 0, 0);
             testWindow.InvalidateVisual();
         }
     }
