@@ -17,19 +17,28 @@ using System.Windows.Shapes;
 
 namespace Simplex
 {
+    //if (Math.Abs(r2) < 0.01) throw new Exception("Particles " + one.number + " and " + two.number + " are too close together!");
     #region Potential definitions
     public abstract class BasePotential
     {
-        public abstract double U(int q1, int q2, double rsquared);
+        public abstract double U(Particle one, Particle two);
+        public abstract Vector3D delU(Particle one, Particle two);
     }
 
     public class Born : BasePotential
     {
         public double c { get; set; } = 1920.0; //au
 
-        public override double U(int q1, int q2, double rsquared)
+        public override double U(Particle one, Particle two)
         {
-            return (q1 * q2 / Math.Sqrt(rsquared)) + (c / Math.Pow(rsquared, 4));
+            double rsquared = (one.Position - two.Position).LengthSquared;
+            return (one.Charge * two.Charge / Math.Sqrt(rsquared)) + (c / Math.Pow(rsquared, 4));
+        }
+
+        public override Vector3D delU(Particle one, Particle two)
+        {
+            double rsquared = (one.Position - two.Position).LengthSquared;
+            return -(one.Charge * two.Charge / Math.Pow(rsquared, 1.5) + 8 * c / Math.Pow(rsquared, 5)) * (two.Position - one.Position);
         }
     }
 
@@ -37,9 +46,16 @@ namespace Simplex
     {
         public double c { get; set; } = 1920.0; //au
 
-        public override double U(int q1, int q2, double rsquared)
+        public override double U(Particle one, Particle two)
         {
-            return (-Math.Abs(q1 * q2) / Math.Sqrt(rsquared)) + (c / Math.Pow(rsquared, 4));
+            double rsquared = (one.Position - two.Position).LengthSquared;
+            return (-Math.Abs(one.Charge * two.Charge) / Math.Sqrt(rsquared)) + (c / Math.Pow(rsquared, 4));
+        }
+
+        public override Vector3D delU(Particle one, Particle two)
+        {
+            double rsquared = (one.Position - two.Position).LengthSquared;
+            return (Math.Abs(one.Charge * two.Charge) / Math.Pow(rsquared, 1.5) - 8 * c / Math.Pow(rsquared, 5)) * (two.Position - one.Position);
         }
     }
 
@@ -48,10 +64,18 @@ namespace Simplex
         public double epsilon { get; set; } = 1.728;      //mHartrees
         public double requilibrium { get; set; } = 7.049; //Bohrs
 
-        public override double U(int q1, int q2, double rsquared)
+        public override double U(Particle one, Particle two)
         {
+            double rsquared = (one.Position - two.Position).LengthSquared;
             double rRatio = requilibrium * requilibrium / rsquared;
-            return epsilon * Math.Pow(rRatio, 6) - 2 * epsilon * Math.Pow(rRatio, 3);
+            return epsilon * (Math.Pow(rRatio, 6) - 2 * Math.Pow(rRatio, 3));
+        }
+
+        public override Vector3D delU(Particle one, Particle two)
+        {
+            double rsquared = (one.Position - two.Position).LengthSquared;
+            double rRatio = requilibrium * requilibrium / rsquared;
+            return (-6 * epsilon / rsquared * (2 * Math.Pow(rRatio, 6) - Math.Pow(rRatio, 3))) * (two.Position - one.Position);
         }
     }
 
@@ -61,9 +85,15 @@ namespace Simplex
         public double r0 { get; set; } = 2.47;   //Angstrom
         public double beta { get; set; } = 1.49; //Inverse Angstrom
 
-        public override double U(int q1, int q2, double rsquared)
+        public override double U(Particle one, Particle two)
         {
-            return De * Math.Pow(1 - Math.Exp(-beta * (rsquared - r0)), 2) - De;
+            double rsquared = (one.Position - two.Position).LengthSquared;
+            return De * Math.Pow(1 - Math.Exp(-beta * (rsquared - r0)), 2) - De; //TODO: check formula
+        }
+
+        public override Vector3D delU(Particle one, Particle two)
+        {
+            throw new NotImplementedException("Overeager bastard...these are difficult derivatives!");
         }
     }
     #endregion Potential definitions
@@ -72,10 +102,12 @@ namespace Simplex
     {
         protected GeometryModel3D model = new GeometryModel3D();
         protected Vector3D posVector;
+        protected Vector3D velVector;
         protected int number;
         protected int q;
 
         private static MeshGeometry3D sphereMesh = new IcoSphereCreator().Create(3); //Only create the mesh once, copy afterwards
+        private static double velmult = 0.1;
         private static int index = 0;
 
         public Vector3D Position
@@ -84,8 +116,24 @@ namespace Simplex
             set
             {
                 Debug.WriteLine("Changing position of Particle " + number + ".");
-                model.Transform = new TranslateTransform3D(value);
                 posVector = value;
+                model.Transform = new TranslateTransform3D(posVector);
+            }
+        }
+        public Vector3D Velocity
+        {
+            get { return velVector; }
+            set
+            {
+                Console.WriteLine("Changing velocity of Particle " + number + ".");
+                velVector = value;
+                /*** TODO: revisit 'freeze' later
+                if (velVector.LengthSquared < 0.0001)
+                {
+                    IsStatic = true;  //Once velocity gets low enough, freeze the particle.
+                    Console.WriteLine("Velocity low, freezing Particle " + number + ".");
+                }
+                ***/
             }
         }
         public int Charge
@@ -113,32 +161,77 @@ namespace Simplex
             Position = new Vector3D(x, y, z);
             Charge = q;
             number = ++index;
-            Console.WriteLine("Creating Particle number " + number + ".");
+            Console.WriteLine("Creating Particle " + number + ".");
         }
-        
+        public Particle(Vector3D pos, int q)
+        {
+            Position = pos;
+            Charge = q;
+            number = ++index;
+            Console.WriteLine("Creating Particle " + number + ".");
+        }
+        public Particle(Particle other) //Copy constructor
+        {
+            Position = other.Position;
+            Charge = other.Charge;
+            number = ++index;
+            Console.WriteLine("Creating Particle " + number + " as clone of Particle " + other.number + ".");
+        }
+
+        ~Particle()
+        {
+            Console.WriteLine("Destroying Particle " + number + ".");
+        }
+
         public int CompareTo(Particle other)
         {
             if (other == null) return 1;
-
             return Potential.CompareTo(other.Potential);
         }
 
         public void Show(Model3DGroup group)
         {
-            Console.WriteLine("Creating Particle model.");
-            model.Geometry = sphereMesh;
+            Console.WriteLine("Displaying Particle " + number + "'s model.");
+            if (model.Geometry == null) model.Geometry = sphereMesh;
             group.Children.Add(model);
         }
 
-        public double calculatePotential(Particle other, BasePotential potential)
+        public void Hide(Model3DGroup group)
         {
-            if (other == null) throw new NullReferenceException();
-            if (this == other) return 0;
+            Console.WriteLine("Hiding Particle " + number + "'s model.");
+            group.Children.Remove(model);
+        }
 
-            double r2 = (Position - other.Position).LengthSquared;
-            if (Math.Abs(r2) < 0.01) throw new Exception("Particles too close together!");
+        public void updatePotential(List<Particle> others, BasePotential potential)
+        {
+            Potential = 0;
 
-            return potential.U(Charge, other.Charge, r2);
+            foreach (Particle other in others)
+            {
+                if (other == null) throw new ArgumentNullException("Particle " + other.number);
+                if (this == other) continue;
+
+                Potential += potential.U(this, other);
+            }
+        }
+
+        public void updateVelocity(List<Particle> others, BasePotential potential)
+        {
+            Velocity *= velmult; //Keep some of the prior velocity, makes optimization nonlinear
+
+            foreach (Particle other in others)
+            {
+                if (other == null) throw new ArgumentNullException("Particle " + other.number);
+                if (this == other) continue;
+
+                Velocity += potential.delU(this, other);
+            }
+            Console.WriteLine("Particle " + number + " velocity: " + Velocity.ToString());
+        }
+
+        public void updatePosition(double stepSize)
+        {
+            Position += Velocity * stepSize;
         }
     }
 
@@ -313,60 +406,110 @@ namespace Simplex
     /// </summary>
     partial class MainWindow : Window
     {
-        //NM coefficients, probably not going to be alterable.
-        private double alpha = 1.0;
-        private double gamma = 2.0;
-        private double rho = 0.5;
-        private double sigma = 0.5;
-
-        public List<Particle> NMStep(List<Particle> pList, BasePotential potential)
+        public void NewtonianStep(double stepSize = 1.0)
         {
-            //TODO: Nelder Mead step process
-            // exclude stationary particles
+            foreach (Particle part in pList)
+            {
+                part.updateVelocity(pList, potential);
+            }
+            //TODO: convergence criteria??
 
-            //TODO: calculate potentials
-
-            //sort by potential
-            pList.Sort();
-
-            //TODO: calculate centroid point for all but last
-            //TODO: reflection
-            //TODO: expansion
-            //TODO: contraction
-            //TODO: reduction
-
-            throw new NotImplementedException("Too soon, bro.");
+            pList.NewtonStep(stepSize);
         }
 
-        public List<Particle> calcPotentials(List<Particle> pList, BasePotential potential)
+
+        //TODO: short-circuit logic for only two particles
+        public void NMStep()
         {
-            //TODO: calculate the potentials
-            int n = pList.Count;
-            double placeholder;
-            double[,] U = new double[n, n];
+            //NM coefficients, probably not going to be alterable.
+            double alpha = 1.0;
+            double gamma = 2.0;
+            double rho = 0.5;
+            double sigma = 0.5;
 
-            //Form potentials matrix (symmetric, real, zero-diagonal)
-            for (int i = 0; i < n; i++)
+            //Calculate and sort by potential
+            foreach (Particle part in pList)
             {
-                for (int j = i; i < n; j++)
-                {
-                    placeholder = pList[i].calculatePotential(pList[j], potential);
-                    U[i, j] = placeholder;
-                    U[j, i] = placeholder;
-                }
+                part.updatePotential(pList, potential);
+            }
+            pList.Sort();
+
+            //Calculate centroid point for all Particles but the last
+            //TODO: exclude stationary particles (increase findCentroid argument)
+            Vector3D centroid = findCentroid(1);
+            Particle worst = new Particle(pList.Last());
+            int last = pList.Count - 1;
+
+            //reflection TODO: find why it's binding here
+            Particle reflectedPoint = new Particle(centroid + alpha * (centroid - worst.Position), worst.Charge);
+            reflectedPoint.updatePotential(pList, potential);
+
+            if (reflectedPoint.Potential < pList[last - 1].Potential && reflectedPoint.Potential > pList[0].Potential)
+            {
+                pList[last].Hide(group);
+                pList[last] = reflectedPoint;
+                pList[last].Show(group);
+                return;
             }
 
-            //Sum the rows (or columns) for individual center potentials
-            for (int i = 0; i < n; i++)
+            //expansion
+            if (reflectedPoint.Potential < pList[0].Potential)
             {
-                pList[i].Potential = 0;
-                for (int j = 0; j < n; j++)
-                {
-                    pList[i].Potential += U[i, j];
-                }
+                Particle expandedPoint = new Particle(reflectedPoint.Position + gamma * (reflectedPoint.Position - centroid), worst.Charge);
+                expandedPoint.updatePotential(pList, potential);
+
+                pList[last].Hide(group);
+
+                if (expandedPoint.Potential < reflectedPoint.Potential)
+                    pList[last] = expandedPoint;
+                else pList[last] = reflectedPoint;
+                pList[last].Show(group);
+                return;
             }
 
-            return pList;
+            //contraction
+            Particle contractedPoint = new Particle(centroid + rho * (worst.Position - centroid), worst.Charge);
+            contractedPoint.updatePotential(pList, potential);
+
+            if (contractedPoint.Potential < worst.Potential)
+            {
+                pList[last].Hide(group);
+                pList[last] = contractedPoint;
+                pList[last].Show(group);
+                return;
+            }
+
+            //reduction
+            for (int i = 1; i < pList.Count; i++)
+            {
+                pList[i].Position = pList[0].Position + sigma * (pList[i].Position - pList[0].Position);
+            }
+        }
+
+        public Vector3D findCentroid(int exclude = 1)
+        {
+            Vector3D center = new Vector3D(0, 0, 0);
+            int n = pList.Count - exclude;
+            
+            for (int i = 0; i < n; i++)
+            {
+                center += pList[i].Position;
+            }
+
+            return (center / n);
+        }
+    }
+
+    public static class ListExtensions
+    {
+        public static void ShowAll(this IEnumerable<Particle> pList, Model3DGroup group)
+        {
+            foreach (Particle part in pList) part.Show(group);
+        }
+
+        public static void NewtonStep(this IEnumerable<Particle> pList, double stepSize)
+        {
+            foreach (Particle part in pList) part.updatePosition(stepSize);
         }
     }
 }

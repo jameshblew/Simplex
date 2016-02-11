@@ -21,22 +21,29 @@ namespace Simplex
     /// </summary>
     public partial class MainWindow : Window
     {
-        Particle testSphere;
+        List<Particle> pList = new List<Particle>();
+        BasePotential potential;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            testSphere = new Particle(-1, 0, 0, 1);
-            testSphere.Show(group);
+            pList.Add(new Particle(-2, -2, 0, -1));
+            pList.Add(new Particle(2, -2, 0, 1));
+            pList.Add(new Particle(0, 3, 0, 1));
+            pList.ShowAll(group);
+
+            potential = new BornAttractive();
         }
 
         private void button_Click(object sender, RoutedEventArgs e)
         {
-            Particle sp2 = new Particle(0, 0, 0, -1);
-            sp2.Show(group);
-            testSphere.Position = new Vector3D(1, 0, 0);
-            testWindow.InvalidateVisual();
+            //while (true)
+            {
+                NMStep(pList, potential);
+                //await Task.Delay(50);
+                testWindow.InvalidateVisual();
+            }
         }
     }
 }
