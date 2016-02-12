@@ -28,19 +28,20 @@ namespace Simplex
         {
             InitializeComponent();
 
-            pList.Add(new Particle(-2, -2, 0, -1));
+            pList.Add(new Particle(-2, -3, 0, -1));
             pList.Add(new Particle(2, -2, 0, 1));
-            pList.Add(new Particle(0, 3, 0, 1));
+            pList.Add(new Particle(2, 2, 0, 1));
+            pList.Add(new Particle(-2, 4, 0, -1));
             pList.ShowAll(group);
 
             potential = new BornAttractive();
         }
 
-        private void button_Click(object sender, RoutedEventArgs e)
+        private async void button_Click(object sender, RoutedEventArgs e)
         {
             //while (true)
             {
-                NMStep(pList, potential);
+                NMStep();
                 //await Task.Delay(50);
                 testWindow.InvalidateVisual();
             }

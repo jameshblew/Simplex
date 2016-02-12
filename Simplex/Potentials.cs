@@ -418,7 +418,7 @@ namespace Simplex
         }
 
 
-        //TODO: short-circuit logic for only two particles
+        //TODO: short-circuit logic for only two, three particles
         public void NMStep()
         {
             //NM coefficients, probably not going to be alterable.
@@ -435,10 +435,10 @@ namespace Simplex
             pList.Sort();
 
             //Calculate centroid point for all Particles but the last
-            //TODO: exclude stationary particles (increase findCentroid argument)
+            //TODO: exclude stationary particles (increase findCentroid argument?)
             Vector3D centroid = findCentroid(1);
-            Particle worst = new Particle(pList.Last());
             int last = pList.Count - 1;
+            Particle worst = new Particle(pList[last]);
 
             //reflection TODO: find why it's binding here
             Particle reflectedPoint = new Particle(centroid + alpha * (centroid - worst.Position), worst.Charge);
